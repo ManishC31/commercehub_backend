@@ -10,7 +10,7 @@ export const getAllCategories = async (db: DbClient) => {
 export const getCategoryById = async (db: DbClient, categoryId: number) => {
   const query = `SELECT * FROM category WHERE id = $1`;
   const { rows } = await db.query(query, [categoryId]);
-  return rows;
+  return rows[0];
 };
 
 export const createCategory = async (db: DbClient, data: NewCategoryInput) => {
