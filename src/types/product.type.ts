@@ -8,6 +8,7 @@ export type NewProductInput = {
   fit: string;
   price: number;
   discount: number;
+  imageUrls: string[];
 };
 
 export type NewProductRangeInput = {

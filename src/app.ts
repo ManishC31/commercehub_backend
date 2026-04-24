@@ -10,6 +10,7 @@ const app: Express = express();
 // middlewares
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(express.static("/uploads"));
 app.use(cookieParser());
 app.use(cors());
 

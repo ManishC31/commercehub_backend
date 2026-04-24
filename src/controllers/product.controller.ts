@@ -6,17 +6,50 @@ import { ApiResponse } from "../utils/responses.util.ts";
 import { deleteFeedbackByProductId } from "../services/feedback.service.ts";
 import { deleteWishListByProductRange } from "../services/wishlist.service.ts";
 import { createProductRange, getProductRangeByProductId } from "../services/productrange.service.ts";
+import { uploadFileInCloudinary } from "../utils/cloudinary.util.ts";
+import path from "path";
+import { fileURLToPath } from "url";
+import { deleteFileFromUploads } from "../utils/resources.utils.ts";
 
 export const createProductController = asyncHandler(async (req: Request, res: Response) => {
   // validate the title of the product
-  const existingProduct = await getProductByName(pool, req.body.title);
+  // const existingProduct = await getProductByName(pool, req.body.title);
 
-  if (existingProduct) {
-    throw new Error("Product with name already exists");
+  // if (existingProduct) {
+  //   throw new Error("Product with name already exists");
+  // }
+
+  // upload images on cloudinary
+  const imageUrls: string[] = [];
+
+  if (req.files) {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
+    const files = req.files as Express.Multer.File[];
+    for (const file of files) {
+      const filePath = `${__dirname}/../../uploads/${file.filename}`;
+      try {
+        const result = await uploadFileInCloudinary({
+          folderName: "products",
+          filePath: filePath,
+        });
+
+        imageUrls.push(result.secure_url);
+      } catch (error) {
+        console.log("Failed to upload images:", error);
+        throw error;
+      } finally {
+        // delete file from uploads folder
+        await deleteFileFromUploads(filePath);
+      }
+    }
   }
 
-  const newProduct = await createProduct(pool, req.body);
+  req.body.imageUrls = [...imageUrls];
+  req.body.careInstructions = req.body.careInstructions.split(",");
 
+  const newProduct = await createProduct(pool, req.body);
   ApiResponse(res, "Product created successfully", 201, newProduct);
 });
 
@@ -29,7 +62,18 @@ export const getProductsController = asyncHandler(async (req: Request, res: Resp
   ApiResponse(res, "Products fetched successfully", 200, products);
 });
 
-export const getProductDetailByIdController = asyncHandler(async (req: Request, res: Response) => {});
+export const getProductDetailByIdController = asyncHandler(async (req: Request, res: Response) => {
+  const productId = Number(req.params.id);
+
+  if (Number.isNaN(productId)) {
+    throw new Error("Invalid product id");
+  }
+
+  const productData = await getProductById(pool, productId)
+  const productRangeDetails = await getProductInformationById(pool, [productId])
+  
+  ApiResponse(res, 'Product information fetched successfully', 200, {product: productData, range: productRangeDetails})
+});
 
 export const deleteProductController = asyncHandler(async (req: Request, res: Response) => {
   const productId = Number(req.params.id);
